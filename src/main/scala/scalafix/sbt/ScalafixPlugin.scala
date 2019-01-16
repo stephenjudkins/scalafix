@@ -45,6 +45,11 @@ object ScalafixPlugin extends AutoPlugin {
         "Optional location to .scalafix.conf file to specify which scalafix rules should run. " +
           "Defaults to the build base directory if a .scalafix.conf file exists."
       )
+    val scalafixClasspath: TaskKey[Classpath] =
+      taskKey[Classpath](
+        "Optional additional classpath from which to load Scalafix rules."
+      )
+
     val scalafixSemanticdb: ModuleID =
       scalafixSemanticdb(BuildInfo.scalametaVersion)
     def scalafixSemanticdb(scalametaVersion: String): ModuleID =
@@ -78,10 +83,14 @@ object ScalafixPlugin extends AutoPlugin {
   override def projectSettings: Seq[Def.Setting[_]] =
     Seq(Compile, Test).flatMap(c => inConfig(c)(scalafixConfigSettings(c)))
 
+  private val scalafixInit: TaskKey[Unit] =
+    taskKey[Unit](
+      "Initializes Scalafix settings"
+    )
+
   override def globalSettings: Seq[Def.Setting[_]] = Seq(
-    initialize := {
-      val _ = initialize.value
-      // Ideally, we would not resort to storing mutable state in `initialize`.
+    scalafixInit := {
+      // Ideally, we would not resort to storing mutable state in `scalafixInit`.
       // The optimal solution would be to run `scalafixDependencies.value`
       // inside `scalafixInputTask`.
       // However, we can't do that due to an sbt bug:
@@ -89,12 +98,14 @@ object ScalafixPlugin extends AutoPlugin {
       workingDirectory = baseDirectory.in(ThisBuild).value.toPath
       scalafixInterface = ScalafixInterface.fromToolClasspath(
         scalafixDependencies = scalafixDependencies.in(ThisBuild).value,
-        scalafixCustomResolvers = scalafixResolvers.in(ThisBuild).value
+        scalafixCustomResolvers = scalafixResolvers.in(ThisBuild).value,
+        additionalClasspath = scalafixClasspath.in(ThisBuild).value
       )
     },
     scalafixConfig := None, // let scalafix-cli try to infer $CWD/.scalafix.conf
     scalafixResolvers := ScalafixCoursier.defaultResolvers,
     scalafixDependencies := Nil,
+    scalafixClasspath := Nil,
     commands += ScalafixEnable.command
   )
 
@@ -128,7 +139,8 @@ object ScalafixPlugin extends AutoPlugin {
       val extraDependencies = parsed.map(_.dependency)
       val interface = ScalafixInterface.fromToolClasspath(
         scalafixDependencies = extraDependencies ++ baseDependencies,
-        scalafixCustomResolvers = baseResolvers
+        scalafixCustomResolvers = baseResolvers,
+        additionalClasspath = Nil
       )
       val newShell = shell.copy(rules = rules ++ parsed.map(_.ruleName))
       (newShell, interface().args)
@@ -139,6 +151,8 @@ object ScalafixPlugin extends AutoPlugin {
       config: Configuration
   ): Def.Initialize[InputTask[Unit]] =
     Def.inputTaskDyn {
+      scalafixInit.value
+
       val shell0 = new ScalafixCompletions(
         workingDirectory = () => workingDirectory,
         loadedRules = () => scalafixArgs().availableRules().asScala,

@@ -8,6 +8,7 @@ import java.{util => jutil}
 
 import com.geirsson.coursiersmall
 import com.geirsson.coursiersmall._
+import sbt.Keys.Classpath
 import sbt._
 import scalafix.sbt.BuildInfo
 

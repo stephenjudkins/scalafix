@@ -28,6 +28,7 @@ class ScalafixAPISuite extends FunSuite {
     val ScalafixInterface(_, args) = ScalafixInterface.fromToolClasspath(
       List("com.geirsson" %% "example-scalafix-rule" % "1.3.0"),
       ScalafixCoursier.defaultResolvers,
+      Seq.empty,
       logger
     )()
     val tmp = Files.createTempFile("scalafix", "Tmp.scala")

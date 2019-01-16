@@ -31,7 +31,8 @@ class SbtCompletionsSuite extends FunSuite {
     ScalafixInterface
       .fromToolClasspath(
         Seq(exampleDependency),
-        ScalafixCoursier.defaultResolvers
+        ScalafixCoursier.defaultResolvers,
+        Seq.empty
       )()
       .args
   val loadedRules = mainArgs.availableRules.asScala.toList
